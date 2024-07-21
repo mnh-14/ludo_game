@@ -35,6 +35,9 @@ class Pill:
         self.reamining_move = 0
         self.movement_frame = 0
         self.movement_direction = 1
+        self.glow_direction = -1
+        self.glow_width = Setting.PILL_GLOW_WIDTH_LIM
+        self.glow_frame = 0
     
     def set_position(self, left, top, tile_no=-1):
         self.rect.top = top
@@ -48,6 +51,18 @@ class Pill:
             screen.blit(self.temp_img, self.img_rect)
         else:
             screen.blit(self.img, self.img_rect)
+    
+    def glow_pill(self, screen: pygame.Surface):
+        if self.glow_frame % Setting.FRAME_PER_PILL_GLOW != 0:
+            self.glow_frame += 1
+            # print("Pill grow frame", self.glow_frame)
+        else: 
+            self.glow_width += self.glow_direction
+            self.glow_frame = 1
+            if self.glow_width > Setting.PILL_GLOW_WIDTH_LIM or self.glow_width < 2:
+                self.glow_direction *= -1
+        pygame.draw.rect(screen, (0,0,0), self.rect, self.glow_width+1, 2)
+        pygame.draw.rect(screen, Setting.COLOR[self.color], self.rect, self.glow_width, 2)
     
     def _pure_move(self, left, top):
         diff = left - self.rect.left, top - self.rect.top
@@ -85,7 +100,15 @@ class Player:
     def __init__(self, color:str, setting: Setting) -> None:
         left, top = Setting.PLAYER_SET[color]['rest']
         left, top = left*Setting.TILE + setting.board_rect.left, top*Setting.TILE + setting.board_rect.top
+        self.state = 0
+        self.color = color
+        self.glow_frame = 1
+        self.glow_width = Setting.PLAYER_GLOW_WIDTH_LIM
+        self.glow_direction = -1
         self.rest_rect = pygame.Rect(left, top, 2*Setting.TILE, 2*Setting.TILE)
+        left, top = Setting.PLAYER_SET[color]['area']
+        left, top = left*Setting.TILE + setting.board_rect.left, top*Setting.TILE + setting.board_rect.top
+        self.area_rect = pygame.Rect(left, top, 6*Setting.TILE, 6*Setting.TILE)
         self.pills = [Pill(color, None) for _ in range(4)]
         self._set_pill_positions()
     
@@ -97,7 +120,46 @@ class Player:
     def show_player(self, screen: pygame.Surface):
         pygame.draw.rect(screen, (0,0,0), self.rest_rect, 20)
     
+    def glow_player(self, screen: pygame.Surface):
+        if self.glow_frame % Setting.FRAME_PER_PLAYER_GLOW != 0:
+            self.glow_frame += 1
+        else:
+            self.glow_width += self.glow_direction
+            self.glow_frame = 1
+            if self.glow_width > Setting.PLAYER_GLOW_WIDTH_LIM or self.glow_width < 5:
+                self.glow_direction *= -1
+        pygame.draw.rect(screen, (0,0,0), self.area_rect, self.glow_width+2, 5)
+        pygame.draw.rect(screen, Setting.COLOR[self.color], self.area_rect, self.glow_width, 5)
+    
     def show_pills(self, screen: pygame.Surface):
         for pill in self.pills:
             pill.show_pill(screen)
 
+
+
+class Ludo:
+    def __init__(self, screen: pygame.Surface, player_count:int=2):
+        self.screen = screen
+        self.ludo_board = LudoBoard()
+        self.setting = Setting(self.ludo_board.get_rect())
+        self.players = [Player(c, self.setting) for c in Setting.PLAYER_NUMBERS[player_count]]
+        self.current_player = 0
+        self.pills:list[Pill] = []
+        for player in self.players:
+            self.pills += player.pills
+        
+    def view_board(self):
+        self.ludo_board.show_board(self.screen)
+        for player in self.players:
+            player.glow_player(self.screen)
+        for pill in self.pills:
+            pill.show_pill(self.screen)
+            pill.glow_pill(self.screen)
+
+
+
+class Dice:
+    LOCATION = "asset\\dice\\"
+    def __init__(self):
+        self.images = [pygame.image.load(Dice.LOCATION+str(i)+".png") for i in range(1,7)]
+        self.pots = [pygame.image.load(Dice.LOCATION+'pot'+str(i)+".png") for i in range(1,7)]

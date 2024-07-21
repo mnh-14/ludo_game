@@ -8,14 +8,19 @@ class Setting:
     TILE = 48
     TILEMAP = []
     PILL_SPEED = 3
+    PILL_GLOW_WIDTH_LIM = 5
+    PLAYER_GLOW_WIDTH_LIM = 15
     FRAME_PER_PILL_MOVE = 1
+    FRAME_PER_PLAYER_GLOW = 2
+    FRAME_PER_PILL_GLOW = 3
     HOME_NUMBER = 100
-    PLAYER_NUMBERS = {2:'ry', 3:'rgy', 4:'rgby'}
+    PLAYER_NUMBERS = {2:'ry', 3:'rgy', 4:'rgyb'}
+    COLOR = {'r':(255,0,0), 'g':(0,255,0), 'b':(0,0,255), 'y':(255, 255, 0)}
     PLAYER_SET = {
-        'r':{'stop':1, 'home entry':51, 'dir':(1, 0, 6), 'rest':(1, 1)},
-        'g':{'stop':14, 'home entry':12, 'dir':(0, 1, 6), 'rest':(11, 1)},
-        'y':{'stop':27, 'home entry':25, 'dir':(-1, 0, 6), 'rest':(11, 11)},
-        'b':{'stop':40, 'home entry':38, 'dir':(0, -1, 6), 'rest':(1, 11)},
+        'r':{'stop':1, 'home entry':51, 'dir':(1, 0, 6), 'rest':(1, 1), 'area':(0,0)},
+        'g':{'stop':14, 'home entry':12, 'dir':(0, 1, 6), 'rest':(11, 1), 'area':(9,0)},
+        'y':{'stop':27, 'home entry':25, 'dir':(-1, 0, 6), 'rest':(11, 11), 'area':(9,9)},
+        'b':{'stop':40, 'home entry':38, 'dir':(0, -1, 6), 'rest':(1, 11), 'area':(0,9)},
     }
     @staticmethod
     def _get_tilemap(tile_size: int):
