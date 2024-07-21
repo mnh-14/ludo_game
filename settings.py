@@ -7,14 +7,15 @@ class Setting:
     FPS = 120
     TILE = 48
     TILEMAP = []
-    PILL_SPEED = 4
+    PILL_SPEED = 3
     FRAME_PER_PILL_MOVE = 1
     HOME_NUMBER = 100
+    PLAYER_NUMBERS = {2:'ry', 3:'rgy', 4:'rgby'}
     PLAYER_SET = {
-        'r':{'stop':1, 'home entry':51, 'dir':(1, 0, 6)},
-        'g':{'stop':14, 'home entry':12, 'dir':(0, 1, 6)},
-        'y':{'stop':27, 'home entry':25, 'dir':(-1, 0, 6)},
-        'b':{'stop':40, 'home entry':38, 'dir':(0, -1, 6)},
+        'r':{'stop':1, 'home entry':51, 'dir':(1, 0, 6), 'rest':(1, 1)},
+        'g':{'stop':14, 'home entry':12, 'dir':(0, 1, 6), 'rest':(11, 1)},
+        'y':{'stop':27, 'home entry':25, 'dir':(-1, 0, 6), 'rest':(11, 11)},
+        'b':{'stop':40, 'home entry':38, 'dir':(0, -1, 6), 'rest':(1, 11)},
     }
     @staticmethod
     def _get_tilemap(tile_size: int):

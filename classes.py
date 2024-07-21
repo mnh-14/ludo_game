@@ -79,3 +79,25 @@ class Pill:
             self.reamining_move -= 1
             self.curr_tile = tile_no
 
+
+
+class Player:
+    def __init__(self, color:str, setting: Setting) -> None:
+        left, top = Setting.PLAYER_SET[color]['rest']
+        left, top = left*Setting.TILE + setting.board_rect.left, top*Setting.TILE + setting.board_rect.top
+        self.rest_rect = pygame.Rect(left, top, 2*Setting.TILE, 2*Setting.TILE)
+        self.pills = [Pill(color, None) for _ in range(4)]
+        self._set_pill_positions()
+    
+    def _set_pill_positions(self):
+        positions = [self.rest_rect.topleft, self.rest_rect.topright, self.rest_rect.bottomleft, self.rest_rect.bottomright]
+        for i in range(4):
+            self.pills[i].set_position(*positions[i])
+    
+    def show_player(self, screen: pygame.Surface):
+        pygame.draw.rect(screen, (0,0,0), self.rest_rect, 20)
+    
+    def show_pills(self, screen: pygame.Surface):
+        for pill in self.pills:
+            pill.show_pill(screen)
+

@@ -2,7 +2,7 @@ import pygame
 from pygame import Rect, display
 import pygame.draw
 import pygame.time
-from classes import LudoBoard, Pill
+from classes import LudoBoard, Pill, Player
 from event_handler import check_events, check_game_events
 from settings import Setting
 
@@ -16,6 +16,10 @@ ludo_board = LudoBoard()
 setting = Setting(ludo_board.get_rect())
 pill = Pill('g', ludo_board.tile_board)
 pill.set_position(*setting.get_tile(14, 'g'))
+players: list[Player] = []
+for c in list(Setting.PLAYER_NUMBERS[4]):
+    players.append(Player(c, setting))
+
 # pill.movement_direction = -1
 
 def game():
@@ -24,6 +28,8 @@ def game():
     check_game_events(pill)
     pill.movement(setting)
     pill.show_pill(screen)
+    for player in players:
+        player.show_pills(screen)
     display.flip()
     fps_clock.tick(Setting.FPS)
 
