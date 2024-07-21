@@ -34,6 +34,7 @@ class Pill:
         self.temp_img = self.img.copy()
         self.reamining_move = 0
         self.movement_frame = 0
+        self.movement_direction = 1
     
     def set_position(self, left, top, tile_no=-1):
         self.rect.top = top
@@ -68,14 +69,13 @@ class Pill:
             return
         if self.movement_frame % Setting.FRAME_PER_PILL_MOVE != 0:
             self.movement_frame += 1
-            # print("Increasing frame count")
             return
+        if self.movement_direction > 0 and self.curr_tile == Setting.PLAYER_SET[self.color]['home entry']:
+            self.curr_tile = Setting.HOME_NUMBER
 
-        left, top, tile_no = setting.get_tile(self.curr_tile+1, self.color)
+        left, top, tile_no = setting.get_tile(self.curr_tile+self.movement_direction, self.color)
         self._pure_move(left, top)
         if self.rect.left == left and self.rect.top == top:
             self.reamining_move -= 1
             self.curr_tile = tile_no
-        # if self.curr_tile == len(Setting.TILEMAP):
-        #     self.curr_tile = 0
 

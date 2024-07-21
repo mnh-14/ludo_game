@@ -14,8 +14,9 @@ pygame.display.set_caption("Ludo Ludo")
 fps_clock = pygame.time.Clock()
 ludo_board = LudoBoard()
 setting = Setting(ludo_board.get_rect())
-pill = Pill('y', ludo_board.tile_board)
-pill.set_position(*setting.get_tile(27, 'y'))
+pill = Pill('g', ludo_board.tile_board)
+pill.set_position(*setting.get_tile(14, 'g'))
+# pill.movement_direction = -1
 
 def game():
     screen.fill((0, 0, 0))
