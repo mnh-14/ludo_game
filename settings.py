@@ -13,6 +13,11 @@ class Setting:
     FRAME_PER_PILL_MOVE = 1
     FRAME_PER_PLAYER_GLOW = 2
     FRAME_PER_PILL_GLOW = 3
+    FRAME_PER_DICE_BLINK = 20
+    FRAME_PER_DICE_ROLL_ANIM = 1
+    DICE_BLINKING_SPEED_WHILE_ROLLING = 5
+    PILL_PER_PLAYER = 4
+    TIME_PER_DICE_ROLL = 1
     HOME_NUMBER = 100
     PLAYER_NUMBERS = {2:'ry', 3:'rgy', 4:'rgyb'}
     COLOR = {'r':(255,0,0), 'g':(0,255,0), 'b':(0,0,255), 'y':(255, 255, 0)}

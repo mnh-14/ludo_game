@@ -19,6 +19,7 @@ ludo = Ludo(screen, 4)
 def gameplay():
     screen.fill((0,0,0))
     ludo.view_board()
+    ludo.view_operating_board()
     check_game_events(ludo)
     display.flip()
     fps_clock.tick(Setting.FPS)

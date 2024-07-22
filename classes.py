@@ -1,7 +1,9 @@
+from random import randint
 import pygame
 import pygame.draw
 import pygame.image
 import pygame.surface
+import pygame.transform
 from settings import Setting
 
 
@@ -11,7 +13,7 @@ class LudoBoard:
     def __init__(self):
         self.img = pygame.image.load(LudoBoard.IMG_PATH)
         self.rect = self.img.get_rect()
-        self.rect.center = Setting.SCREEN_RES[0]/2, Setting.SCREEN_RES[1]/2
+        self.rect.center = Setting.SCREEN_RES[0]/2 + 3*Setting.TILE, Setting.SCREEN_RES[1]/2
         self.tile_board = [0 for _ in range(52)]
     
     def show_board(self, screen: pygame.Surface):
@@ -109,13 +111,14 @@ class Player:
         left, top = Setting.PLAYER_SET[color]['area']
         left, top = left*Setting.TILE + setting.board_rect.left, top*Setting.TILE + setting.board_rect.top
         self.area_rect = pygame.Rect(left, top, 6*Setting.TILE, 6*Setting.TILE)
-        self.pills = [Pill(color, None) for _ in range(4)]
+        self.pills = [Pill(color, None) for _ in range(Setting.PILL_PER_PLAYER)]
+        self.current_pill = 0
         self._set_pill_positions()
     
     def _set_pill_positions(self):
         positions = [self.rest_rect.topleft, self.rest_rect.topright, self.rest_rect.bottomleft, self.rest_rect.bottomright]
-        for i in range(4):
-            self.pills[i].set_position(*positions[i])
+        for i in range(Setting.PILL_PER_PLAYER):
+            self.pills[i].set_position(*positions[i%4])
     
     def show_player(self, screen: pygame.Surface):
         pygame.draw.rect(screen, (0,0,0), self.rest_rect, 20)
@@ -134,6 +137,11 @@ class Player:
     def show_pills(self, screen: pygame.Surface):
         for pill in self.pills:
             pill.show_pill(screen)
+    
+    def toggle_pills(active:int = True):
+        #Toggle between active or inactive pills
+        pass
+        
 
 
 
@@ -145,21 +153,88 @@ class Ludo:
         self.players = [Player(c, self.setting) for c in Setting.PLAYER_NUMBERS[player_count]]
         self.current_player = 0
         self.pills:list[Pill] = []
+        self.dice = Dice()
+        self.stage = 1
         for player in self.players:
             self.pills += player.pills
         
     def view_board(self):
         self.ludo_board.show_board(self.screen)
-        for player in self.players:
-            player.glow_player(self.screen)
+        # for player in self.players:
+        #     player.glow_player(self.screen)
         for pill in self.pills:
             pill.show_pill(self.screen)
-            pill.glow_pill(self.screen)
+        self.dice.show_dice(self.screen)
+    
+    def view_operating_board(self):
+        if self.stage == 1:
+            self.wait_to_roll()
+        if self.stage == 2:
+            self.roll_the_dice()
+
+    def switch_player(self):
+        self.current_player += 1
+        if self.current_player == len(self.players):
+            self.current_player = 0
+    
+    def wait_to_roll(self):
+        self.players[self.current_player].glow_player(self.screen)
+        self.dice.blinking()
+    
+    def roll_the_dice(self):
+        is_rolled = self.dice.roll()
+        if is_rolled:
+            self.stage = 3
+    
+    def spacebar_action(self):
+        if self.stage == 1:
+            self.dice.frames=0 # resetting the dice frame for next animation
+            self.stage = 2
+    
+    def tabkey_action(self):
+        if self.stage == 3:
+            pass
+            
+
+        
 
 
 
 class Dice:
     LOCATION = "asset\\dice\\"
     def __init__(self):
-        self.images = [pygame.image.load(Dice.LOCATION+str(i)+".png") for i in range(1,7)]
-        self.pots = [pygame.image.load(Dice.LOCATION+'pot'+str(i)+".png") for i in range(1,7)]
+        dices = [pygame.image.load(Dice.LOCATION+str(i)+".png") for i in range(1,7)]
+        self.dices = [pygame.transform.rotozoom(dice, 0, 0.75) for dice in dices]
+        pots = [pygame.image.load(Dice.LOCATION+'pot'+str(i)+".png") for i in range(1,3)]
+        self.pots = [pygame.transform.rotozoom(pot, 0, 0.75) for pot in pots]
+        self.pot_rect = self.pots[0].get_rect()
+        self.dice_rect = self.dices[0].get_rect()
+        self.pot_rect.center = self.pot_rect.width, Setting.SCREEN_RES[1]//2
+        self.dice_rect.center = self.pot_rect.center
+        self.current_dice = 5
+        self.frames = 0
+        self.curr_pot = 0
+    
+    def show_dice(self, screen:pygame.Surface):
+        screen.blit(self.pots[self.curr_pot], self.pot_rect)
+        screen.blit(self.dices[self.current_dice-1], self.dice_rect)
+    
+    def blinking(self, speed:int=1):
+        if self.frames % int(Setting.FRAME_PER_DICE_BLINK/speed) == 0:
+            self.curr_pot = (self.curr_pot+1)%len(self.pots)
+            # self.frames=1
+        if speed==1:
+            self.frames += 1
+    
+    def roll(self)->bool:
+        if self.frames % Setting.FRAME_PER_DICE_ROLL_ANIM == 0:
+            self.current_dice = (self.current_dice+1) % len(self.dices)
+        self.frames += 1
+        self.blinking(Setting.DICE_BLINKING_SPEED_WHILE_ROLLING)
+        if self.frames >= int(Setting.TIME_PER_DICE_ROLL * Setting.FPS):
+            self.current_dice = randint(1, 6)
+            self.frames = 0
+            self.curr_pot = 0
+            return True
+        return False
+    

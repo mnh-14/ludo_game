@@ -16,6 +16,6 @@ def check_game_events(ludo: Ludo):
         if event.type == pygame.QUIT:
             sys.exit()
 
-        # if event.type == pygame.KEYDOWN:
-        #     if event.key == pygame.K_SPACE:
-        #         pill.reamining_move += 5
+        if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_SPACE:
+                ludo.spacebar_action()
