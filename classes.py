@@ -71,7 +71,7 @@ class Pill:
         pygame.draw.rect(screen, Setting.COLOR[self.color], self.rect, 2, 1)
     
     def is_pickable(self, dice_num: int)->bool:
-        if self.curr_tile < 0:
+        if self.curr_tile < 0 and dice_num!=6:
             return False
         if self.curr_tile >= Setting.HOME_NUMBER:
             if (self.curr_tile % Setting.HOME_NUMBER)+dice_num > Setting.PLAYER_SET[self.color]['dir'][2]:
@@ -126,6 +126,7 @@ class Player:
         self.area_rect = pygame.Rect(left, top, 6*Setting.TILE, 6*Setting.TILE)
         self.pills = [Pill(color, None) for _ in range(Setting.PILL_PER_PLAYER)]
         self.current_pill = 0
+        self.current_pill_index_of_pickables = 0
         self.pickable_pills: list[int] = []
         self._set_pill_positions()
     
@@ -141,7 +142,9 @@ class Player:
         self.pickable_pills.clear()
         for i in range(len(self.pills)):
             if self.pills[i].is_pickable(dice_num):
+                self.current_pill = i
                 self.pickable_pills.append(i)
+                self.current_pill_index_of_pickables = len(self.pickable_pills)-1
     
     def glow_player(self, screen: pygame.Surface):
         if self.glow_frame % Setting.FRAME_PER_PLAYER_GLOW != 0:
@@ -164,13 +167,16 @@ class Player:
             pill.show_pill(screen)
     
     def mark_all_pills(self, screen: pygame.Surface):
-        for pill in self.pills:
-            pill.mark_pill(screen)
+        # for pill in self.pills:
+        #     pill.mark_pill(screen)
+        for i in self.pickable_pills:
+            self.pills[i].mark_pill(screen)
         self.pills[self.current_pill].glow_pill(screen)
     
-    def toggle_pills(active:int = True):
-        #Toggle between only active or all pills
-        pass
+    def toggle_pills(self):
+        self.current_pill_index_of_pickables = (self.current_pill_index_of_pickables + 1) % len(self.pickable_pills)
+        self.current_pill = self.pickable_pills[self.current_pill_index_of_pickables]
+        
         
 
 
@@ -242,7 +248,7 @@ class Ludo:
     
     def tabkey_action(self):
         if self.stage == 3:
-            pass
+            self.players[self.current_player].toggle_pills()
             
 
         

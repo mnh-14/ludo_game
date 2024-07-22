@@ -19,3 +19,5 @@ def check_game_events(ludo: Ludo):
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_SPACE:
                 ludo.spacebar_action()
+            if event.key == pygame.K_TAB:
+                ludo.tabkey_action()
