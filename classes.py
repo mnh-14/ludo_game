@@ -40,6 +40,7 @@ class Pill:
         self.glow_direction = -1
         self.glow_width = Setting.PILL_GLOW_WIDTH_LIM
         self.glow_frame = 0
+        self.activity = 0 #-1 for completion, 0 for not active, 1 for active
     
     def set_position(self, left, top, tile_no=-1):
         self.rect.top = top
@@ -65,6 +66,9 @@ class Pill:
                 self.glow_direction *= -1
         pygame.draw.rect(screen, (0,0,0), self.rect, self.glow_width+1, 2)
         pygame.draw.rect(screen, Setting.COLOR[self.color], self.rect, self.glow_width, 2)
+    
+    def mark_pill(self, screen: pygame.Surface):
+        pygame.draw.rect(screen, Setting.COLOR[self.color], self.rect, 2, 1)
     
     def _pure_move(self, left, top):
         diff = left - self.rect.left, top - self.rect.top
@@ -113,6 +117,7 @@ class Player:
         self.area_rect = pygame.Rect(left, top, 6*Setting.TILE, 6*Setting.TILE)
         self.pills = [Pill(color, None) for _ in range(Setting.PILL_PER_PLAYER)]
         self.current_pill = 0
+        self.active_pill_nos = []
         self._set_pill_positions()
     
     def _set_pill_positions(self):
@@ -134,12 +139,22 @@ class Player:
         pygame.draw.rect(screen, (0,0,0), self.area_rect, self.glow_width+2, 5)
         pygame.draw.rect(screen, Setting.COLOR[self.color], self.area_rect, self.glow_width, 5)
     
+    def mark_player(self, screen: pygame.Surface):
+        pygame.draw.rect(screen, (0,0,0), self.area_rect, Setting.PLAYER_GLOW_WIDTH_LIM//2+2, 5)
+        pygame.draw.rect(screen, Setting.COLOR[self.color], self.area_rect, Setting.PLAYER_GLOW_WIDTH_LIM//2, 5)
+        
+    
     def show_pills(self, screen: pygame.Surface):
         for pill in self.pills:
             pill.show_pill(screen)
     
+    def mark_all_pills(self, screen: pygame.Surface):
+        for pill in self.pills:
+            pill.mark_pill(screen)
+        self.pills[self.current_pill].glow_pill(screen)
+    
     def toggle_pills(active:int = True):
-        #Toggle between active or inactive pills
+        #Toggle between only active or all pills
         pass
         
 
@@ -155,6 +170,7 @@ class Ludo:
         self.pills:list[Pill] = []
         self.dice = Dice()
         self.stage = 1
+        self.frame = 1
         for player in self.players:
             self.pills += player.pills
         
@@ -171,20 +187,37 @@ class Ludo:
             self.wait_to_roll()
         if self.stage == 2:
             self.roll_the_dice()
+        if self.stage == 3:
+            self.choose_pill()
+        if self.stage == 7:
+            self.switch_player()
 
     def switch_player(self):
-        self.current_player += 1
-        if self.current_player == len(self.players):
-            self.current_player = 0
+        self.frame += 1
+        self.wait_to_roll(False, False)
+        if (self.frame % int(Setting.PLAYER_SWITCHING_DELAY * Setting.FPS))==0:
+            self.current_player += 1
+            self.current_player = self.current_player % len(self.players)
+            self.stage = 1
+            self.frame = 1
     
-    def wait_to_roll(self):
-        self.players[self.current_player].glow_player(self.screen)
-        self.dice.blinking()
+    def wait_to_roll(self, player_glow:bool=True, blinking:bool=True):
+        if player_glow==True:
+            self.players[self.current_player].glow_player(self.screen)
+        else: self.players[self.current_player].mark_player(self.screen)
+        if blinking==True:
+            self.dice.blinking()
     
     def roll_the_dice(self):
         is_rolled = self.dice.roll()
         if is_rolled:
             self.stage = 3
+    
+    def choose_pill(self):
+        if len(self.players[self.current_player].active_pill_nos) == 0:
+            self.stage = 7
+            return
+        self.players[self.current_player].mark_all_pills(self.screen)
     
     def spacebar_action(self):
         if self.stage == 1:
