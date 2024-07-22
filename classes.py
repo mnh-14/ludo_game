@@ -70,6 +70,15 @@ class Pill:
     def mark_pill(self, screen: pygame.Surface):
         pygame.draw.rect(screen, Setting.COLOR[self.color], self.rect, 2, 1)
     
+    def is_pickable(self, dice_num: int)->bool:
+        if self.curr_tile < 0:
+            return False
+        if self.curr_tile >= Setting.HOME_NUMBER:
+            if (self.curr_tile % Setting.HOME_NUMBER)+dice_num > Setting.PLAYER_SET[self.color]['dir'][2]:
+                return False
+        return True
+
+    
     def _pure_move(self, left, top):
         diff = left - self.rect.left, top - self.rect.top
         dx = diff[0]/abs(diff[0]) if diff[0]!=0 else 0
@@ -117,7 +126,7 @@ class Player:
         self.area_rect = pygame.Rect(left, top, 6*Setting.TILE, 6*Setting.TILE)
         self.pills = [Pill(color, None) for _ in range(Setting.PILL_PER_PLAYER)]
         self.current_pill = 0
-        self.active_pill_nos = []
+        self.pickable_pills: list[int] = []
         self._set_pill_positions()
     
     def _set_pill_positions(self):
@@ -127,6 +136,12 @@ class Player:
     
     def show_player(self, screen: pygame.Surface):
         pygame.draw.rect(screen, (0,0,0), self.rest_rect, 20)
+    
+    def find_pickable_pills(self, dice_num:int):
+        self.pickable_pills.clear()
+        for i in range(len(self.pills)):
+            if self.pills[i].is_pickable(dice_num):
+                self.pickable_pills.append(i)
     
     def glow_player(self, screen: pygame.Surface):
         if self.glow_frame % Setting.FRAME_PER_PLAYER_GLOW != 0:
@@ -211,10 +226,11 @@ class Ludo:
     def roll_the_dice(self):
         is_rolled = self.dice.roll()
         if is_rolled:
+            self.players[self.current_player].find_pickable_pills(self.dice.current_dice)
             self.stage = 3
     
     def choose_pill(self):
-        if len(self.players[self.current_player].active_pill_nos) == 0:
+        if len(self.players[self.current_player].pickable_pills) == 0:
             self.stage = 7
             return
         self.players[self.current_player].mark_all_pills(self.screen)
