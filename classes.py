@@ -1,4 +1,7 @@
+from distutils.core import setup_keywords
 from random import randint
+import random
+from numpy import tile
 import pygame
 import pygame.draw
 import pygame.image
@@ -23,6 +26,15 @@ class LudoBoard:
     
     def get_rect(self):
         return self.rect
+    
+    def get_pills_on_tile(self, tile_no:int, color:str):
+        if tile_no < 52:
+            return self.tile_board[tile_no]
+        return 0
+
+    def increase_pill_count(self, tile_no:int, color:str, increase_amount:int=1):
+        if tile_no < 52:
+            self.tile_board[tile_no] += increase_amount
 
 
 class Pill:
@@ -35,6 +47,7 @@ class Pill:
         self.img_rect = self.img.get_rect()
         self.temp_img = self.img.copy()
         self.reamining_move = 0
+        self.resting_pos = -1
         self.movement_frame = 0
         self.movement_direction = 1
         self.glow_direction = -1
@@ -42,11 +55,12 @@ class Pill:
         self.glow_frame = 0
         self.activity = 0 #-1 for completion, 0 for not active, 1 for active
     
-    def set_position(self, left, top, tile_no=-1):
+    def set_position(self, left, top, rest_position:int, tile_no=-1):
         self.rect.top = top
         self.rect.left = left
         self.curr_tile = tile_no
         self.img_rect.center = self.rect.center
+        self.resting_pos = rest_position
     
     def show_pill(self, screen: pygame.Surface, modified: bool=False):
         self.img_rect.center = self.rect.center
@@ -96,10 +110,10 @@ class Pill:
     def movement(self, setting: Setting):
         if self.reamining_move == 0:
             self.movement_frame = 0
-            return
+            return True
         if self.movement_frame % Setting.FRAME_PER_PILL_MOVE != 0:
             self.movement_frame += 1
-            return
+            return False
         if self.movement_direction > 0 and self.curr_tile == Setting.PLAYER_SET[self.color]['home entry']:
             self.curr_tile = Setting.HOME_NUMBER
 
@@ -108,6 +122,31 @@ class Pill:
         if self.rect.left == left and self.rect.top == top:
             self.reamining_move -= 1
             self.curr_tile = tile_no
+        return False
+    
+    def activation(self, setting: Setting) -> bool:
+        if self.movement_frame % Setting.FRAME_PER_PILL_MOVE != 0:
+            self.movement_frame += 1
+            return False
+        left, top, tile_no = setting.get_tile(Setting.PLAYER_SET[self.color]['stop'], self.color)
+        self._pure_move(left, top)
+        if self.rect.left == left and self.rect.top == top:
+            self.curr_tile = tile_no
+            self.movement_frame = 0
+            return True
+        return False
+    
+    def resting_movements(self, left, top, tile_no)->bool:
+        if self.movement_frame % Setting.FRAME_PER_PILL_MOVE != 0:
+            self.movement_frame += 1
+            return False
+        self._pure_move(left, top)
+        if self.rect.left == left and self.rect.top == top:
+            self.curr_tile = tile_no
+            self.movement_frame = 0
+            return True
+        return False
+
 
 
 
@@ -128,12 +167,12 @@ class Player:
         self.current_pill = 0
         self.current_pill_index_of_pickables = 0
         self.pickable_pills: list[int] = []
+        self.avail_positions = [self.rest_rect.topleft, self.rest_rect.topright, self.rest_rect.bottomleft, self.rest_rect.bottomright]
         self._set_pill_positions()
     
     def _set_pill_positions(self):
-        positions = [self.rest_rect.topleft, self.rest_rect.topright, self.rest_rect.bottomleft, self.rest_rect.bottomright]
         for i in range(Setting.PILL_PER_PLAYER):
-            self.pills[i].set_position(*positions[i%4])
+            self.pills[i].set_position(*self.avail_positions[i%4], rest_position=(i%4))
     
     def show_player(self, screen: pygame.Surface):
         pygame.draw.rect(screen, (0,0,0), self.rest_rect, 20)
@@ -176,6 +215,49 @@ class Player:
     def toggle_pills(self):
         self.current_pill_index_of_pickables = (self.current_pill_index_of_pickables + 1) % len(self.pickable_pills)
         self.current_pill = self.pickable_pills[self.current_pill_index_of_pickables]
+    
+    def command_pill_n_check(self, dice_no:int) -> bool:
+        if self.pills[self.current_pill].curr_tile < 0:
+            return True
+        self.pills[self.current_pill].reamining_move = dice_no
+
+    def activating_pill(self, setting:Setting):
+        # return self.pills[self.current_pill].activation(setting)
+        left, top, tile_no = setting.get_tile(Setting.PLAYER_SET[self.color]['stop'], self.color)
+        return self.pills[self.current_pill].resting_movements(left, top, tile_no)
+    
+    def reset_curr_pill(self, pill_no, tileboard: list[int]):
+        self.current_pill = pill_no
+        stop = Setting.PLAYER_SET[self.color]['stop']
+        pill_tile = self.pills[self.current_pill].curr_tile
+        self.pills[self.current_pill].reamining_move = (pill_tile-stop + len(Setting.TILEMAP)) % len(Setting.TILEMAP)
+        self.pills[self.current_pill].movement_direction = -1
+        tileboard[pill_tile] -= 1
+
+    
+    def deactivating_pill(self, setting:Setting) -> bool:
+        moved_to_stop = self.pills[self.current_pill].movement(setting)
+        if moved_to_stop:
+            rest_idx = self.pills[self.current_pill].resting_pos
+            reached_rest_pos = self.pills[self.current_pill].resting_movements(*self.avail_positions[rest_idx], tile_no=-1)
+            if reached_rest_pos:
+                self.pills[self.current_pill].movement_direction = 1 #fixed the movement direction
+                self.pills[self.current_pill].curr_tile = -1 #fixed the movement direction
+                return True
+        return False
+
+    
+    def moving_pill(self, setting:Setting):
+        return self.pills[self.current_pill].movement(setting)
+    
+    def get_current_pill_tile(self, curr_pill_idx=-1):
+        curr_pill_idx = curr_pill_idx if curr_pill_idx!=-1 else self.current_pill
+        return self.pills[curr_pill_idx].curr_tile
+    
+    def get_pill_rect(self, pill_index:int=-1)->pygame.Rect:
+        idx = self.current_pill if pill_index==-1 else pill_index
+        return self.pills[idx].rect
+
         
         
 
@@ -192,6 +274,7 @@ class Ludo:
         self.dice = Dice()
         self.stage = 1
         self.frame = 1
+        self.resetting_player = 0
         for player in self.players:
             self.pills += player.pills
         
@@ -210,6 +293,12 @@ class Ludo:
             self.roll_the_dice()
         if self.stage == 3:
             self.choose_pill()
+        if self.stage == 4:
+            self.pill_activation()
+        if self.stage == 5:
+            self.pill_movement()
+        if self.stage == 6:
+            self.pill_deactivation()
         if self.stage == 7:
             self.switch_player()
 
@@ -241,10 +330,70 @@ class Ludo:
             return
         self.players[self.current_player].mark_all_pills(self.screen)
     
+    def pill_activation(self):
+        is_activated = self.players[self.current_player].activating_pill(self.setting)
+        if is_activated:
+            self.stage = 1
+    
+    def pill_movement(self):
+        has_moved = self.players[self.current_player].moving_pill(self.setting)
+        if has_moved:
+            curr_tile = self.players[self.current_player].get_current_pill_tile()
+            self.ludo_board.increase_pill_count(curr_tile, self.players[self.current_player].color)
+            count = self.ludo_board.get_pills_on_tile(curr_tile, self.players[self.current_player].color)
+            print("Pill moved to position, with tileno:", curr_tile, "and pill count:", count)
+            if self.ludo_board.get_pills_on_tile(curr_tile, self.players[self.current_player].color) > 1:
+                self.multiple_pill_management(curr_tile)
+            elif self.dice.current_dice == 6:
+                self.stage = 1
+            else: self.stage = 7
+    
+    def multiple_pill_management(self, tile_no:int):
+        pill_count = self.ludo_board.get_pills_on_tile(tile_no, self.players[self.current_player].color)
+        if tile_no in Setting.SAFE_TILES:
+            #TODO: Handle presenting multi pill on same tile, currently only switching the player
+            self.stage = 7
+        elif pill_count == 2:
+            self.handle_pill_death()
+    
+    def handle_pill_death(self):
+        print("Handling pill death once")
+        curr_pill_tile = self.players[self.current_player].get_current_pill_tile()
+        for pl_no in range(len(self.players)):
+            for pidx in range(len(self.players[pl_no].pills)):
+                pill_tile = self.players[pl_no].get_current_pill_tile(pidx)
+                if pill_tile==curr_pill_tile and pl_no == self.current_player:
+                    #TODO: Handle Pill Pairs part. for now its just swithcing player, 
+                    self.stage = 7
+                elif pill_tile == curr_pill_tile:
+                    print("Pill died, switching to resetting the pill of player:", pl_no)
+                    self.resetting_player = pl_no
+                    self.players[pl_no].reset_curr_pill(pidx, self.ludo_board.tile_board)
+                    self.stage = 6
+                    return
+    
+    def pill_deactivation(self):
+        deactivated = self.players[self.resetting_player].deactivating_pill(self.setting)
+        if deactivated:
+            self.stage = 1
+        
+
+            
+
+    
     def spacebar_action(self):
         if self.stage == 1:
             self.dice.frames=0 # resetting the dice frame for next animation
             self.stage = 2
+        if self.stage == 3:
+            is_activation = self.players[self.current_player].command_pill_n_check(self.dice.current_dice)
+            if is_activation == True:
+                self.stage = 4
+            else:
+                self.stage = 5
+            curr_tile = self.players[self.current_player].get_current_pill_tile()
+            self.ludo_board.increase_pill_count(curr_tile, self.players[self.current_player].color, -1)
+
     
     def tabkey_action(self):
         if self.stage == 3:
@@ -287,7 +436,10 @@ class Dice:
         self.frames += 1
         self.blinking(Setting.DICE_BLINKING_SPEED_WHILE_ROLLING)
         if self.frames >= int(Setting.TIME_PER_DICE_ROLL * Setting.FPS):
-            self.current_dice = randint(1, 6)
+            options = [1,2,3,4,6,5,6,1,2,3,6,4,5,6,1,2,3,4,5,6,6]
+            self.current_dice = random.choice(options)
+            # Testing mode:
+            # self.current_dice = int(input("Dice no: "))
             self.frames = 0
             self.curr_pot = 0
             return True

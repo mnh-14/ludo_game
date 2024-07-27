@@ -20,6 +20,7 @@ class Setting:
     PLAYER_SWITCHING_DELAY = 1 
     TIME_PER_DICE_ROLL = 1
     HOME_NUMBER = 100
+    SAFE_TILES = [1, 9, 14, 22, 27, 35, 40, 48]
     PLAYER_NUMBERS = {2:'ry', 3:'rgy', 4:'rgyb'}
     COLOR = {'r':(255,0,0), 'g':(0,255,0), 'b':(0,0,255), 'y':(255, 255, 0)}
     PLAYER_SET = {

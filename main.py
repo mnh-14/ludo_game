@@ -13,7 +13,7 @@ screen = display.set_mode(Setting.SCREEN_RES)
 pygame.display.set_caption("Ludo Ludo")
 fps_clock = pygame.time.Clock()
 
-ludo = Ludo(screen, 4)
+ludo = Ludo(screen, 3)
 
 
 def gameplay():
