@@ -1,7 +1,5 @@
-from distutils.core import setup_keywords
 from random import randint
 import random
-from numpy import tile
 import pygame
 import pygame.draw
 import pygame.image
@@ -13,19 +11,33 @@ from settings import Setting
 
 class LudoBoard:
     IMG_PATH = "asset\\board.png"
-    def __init__(self):
+    RANK_IMG_PATH = "asset\\rank\\"
+    def __init__(self, total_player:int=4):
         self.img = pygame.image.load(LudoBoard.IMG_PATH)
         self.rect = self.img.get_rect()
         self.rect.center = Setting.SCREEN_RES[0]/2 + 3*Setting.TILE, Setting.SCREEN_RES[1]/2
         self.tile_board = [0 for _ in range(52)]
+        self.rank_imgs: list[pygame.Surface] = []
+        for i in sorted([1,4,2,3][0:total_player]):
+            self.rank_imgs.append(pygame.image.load(LudoBoard.RANK_IMG_PATH + str(i) + ".png"))
+        self.rank_rect: list[pygame.Rect] = []
     
     def show_board(self, screen: pygame.Surface):
         pygame.draw.rect(screen, (255,255,255), self.rect)
         screen.blit(self.img, self.rect)
         pygame.draw.rect(screen, (0,0,0), self.rect, 4)
+        for i in range(len(self.rank_rect)):
+            screen.blit(self.rank_imgs[i], self.rank_rect[i])
     
     def get_rect(self):
         return self.rect
+    
+    def add_to_ranks(self, ranker_rect: pygame.Rect) -> int:
+        pos = len(self.rank_rect)
+        rect = self.rank_imgs[pos].get_rect()
+        rect.center = ranker_rect.center
+        self.rank_rect.append(rect)
+        return len(self.rank_rect)
     
     def get_pills_on_tile(self, tile_no:int, color:str):
         if tile_no < 52:
@@ -159,6 +171,7 @@ class Player:
         self.glow_frame = 1
         self.glow_width = Setting.PLAYER_GLOW_WIDTH_LIM
         self.glow_direction = -1
+        self.finished_pill_count = 0
         self.rest_rect = pygame.Rect(left, top, 2*Setting.TILE, 2*Setting.TILE)
         left, top = Setting.PLAYER_SET[color]['area']
         left, top = left*Setting.TILE + setting.board_rect.left, top*Setting.TILE + setting.board_rect.top
@@ -248,7 +261,14 @@ class Player:
 
     
     def moving_pill(self, setting:Setting):
-        return self.pills[self.current_pill].movement(setting)
+        moved = self.pills[self.current_pill].movement(setting)
+        if moved == True:
+            if self.pills[self.current_pill].curr_tile == (Setting.HOME_NUMBER+Setting.HOME_LENGTH):
+                self.finished_pill_count += 1
+        return moved
+    
+    def is_all_pill_finished(self)->bool:
+        return self.finished_pill_count == Setting.PILL_PER_PLAYER
     
     def get_current_pill_tile(self, curr_pill_idx=-1):
         curr_pill_idx = curr_pill_idx if curr_pill_idx!=-1 else self.current_pill
@@ -266,7 +286,7 @@ class Player:
 class Ludo:
     def __init__(self, screen: pygame.Surface, player_count:int=2):
         self.screen = screen
-        self.ludo_board = LudoBoard()
+        self.ludo_board = LudoBoard(player_count)
         self.setting = Setting(self.ludo_board.get_rect())
         self.players = [Player(c, self.setting) for c in Setting.PLAYER_NUMBERS[player_count]]
         self.current_player = 0
@@ -301,6 +321,8 @@ class Ludo:
             self.pill_deactivation()
         if self.stage == 7:
             self.switch_player()
+        if self.stage == 8:
+            pass
 
     def switch_player(self):
         self.frame += 1
@@ -340,19 +362,34 @@ class Ludo:
         if has_moved:
             curr_tile = self.players[self.current_player].get_current_pill_tile()
             self.ludo_board.increase_pill_count(curr_tile, self.players[self.current_player].color)
-            count = self.ludo_board.get_pills_on_tile(curr_tile, self.players[self.current_player].color)
-            print("Pill moved to position, with tileno:", curr_tile, "and pill count:", count)
+            # count = self.ludo_board.get_pills_on_tile(curr_tile, self.players[self.current_player].color)
+            # print("Pill moved to position, with tileno:", curr_tile, "and pill count:", count)
             if self.ludo_board.get_pills_on_tile(curr_tile, self.players[self.current_player].color) > 1:
                 self.multiple_pill_management(curr_tile)
             elif self.dice.current_dice == 6:
                 self.stage = 1
             else: self.stage = 7
+            self._mark_winning_playes()
+
+    
+    def _mark_winning_playes(self):
+        # if self.players[self.current_player].finished_pill_count == Setting.PILL_PER_PLAYER:
+        if self.players[self.current_player].is_all_pill_finished():
+            length = self.ludo_board.add_to_ranks(self.players[self.current_player].area_rect)
+            if length == len(self.players) - 1:
+                for i in range(len(self.players)):
+                    if not self.players[i].is_all_pill_finished():
+                        self.ludo_board.add_to_ranks(self.players[i].area_rect)
+                        break
+                self.stage = 8
     
     def multiple_pill_management(self, tile_no:int):
         pill_count = self.ludo_board.get_pills_on_tile(tile_no, self.players[self.current_player].color)
         if tile_no in Setting.SAFE_TILES:
             #TODO: Handle presenting multi pill on same tile, currently only switching the player
-            self.stage = 7
+            if self.dice.current_dice == 6:
+                self.stage = 1
+            else: self.stage = 7
         elif pill_count == 2:
             self.handle_pill_death()
     
@@ -439,7 +476,7 @@ class Dice:
             options = [1,2,3,4,6,5,6,1,2,3,6,4,5,6,1,2,3,4,5,6,6]
             self.current_dice = random.choice(options)
             # Testing mode:
-            # self.current_dice = int(input("Dice no: "))
+            self.current_dice = int(input("Dice no: "))
             self.frames = 0
             self.curr_pot = 0
             return True
